@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Canvas Animation</title>
+  <style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .main-container {
+        width: 100%;
+        height: 90vh;
+        display: flex;   
+    }
+
+    .canvas-holder {
+        width: 70%;
+        height: 90%;
+    }
+
+    canvas {
+      border: 1px solid black;
+      width: 100%;
+      height: 100%;
+    }
+
+    .actions-holder {
+        width: 30%;
+    }
+  </style>
+  <script defer src="./index.js"></script>
+</head>
+<body>
+    <div class="main-container">
+        <div class="canvas-holder">
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="actions-holder">
+            <div class="action"></div>
+        </div>
+    </div>
+</body>
+</html>
