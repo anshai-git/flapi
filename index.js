@@ -30,16 +30,17 @@ let score = 0;
 
 document.addEventListener("keydown", (event) => {
     switch(event.code) {
+
         case 'Space': {
             jump_h_vel = -12; 
         } break;
 
-        case 'ArrowUp': {
-            let p = new Pipe(canvas.offsetWidth - 100, random(5, 151));
-            pipes.push(p);
-        } break;
+        // case 'ArrowUp': {
+        //     let p = new Pipe(canvas.offsetWidth - 100, random(5, 151));
+        //     pipes.push(p);
+        // } break;
 
-        case 'ArrowRight': {
+        case 'KeyQ': {
             pipe_boost = 15;
             jump_v_vel = 100;
         } break;
