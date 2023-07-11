@@ -38,26 +38,33 @@ let pipe_velocity = 2;
 let pipe_boost = 0;
 let score = 0;
 
-document.addEventListener("keydown", (event) => {
-    if (!is_alive) return;
+function main () {
+    document.addEventListener("keydown", (event) => {
+        if (!is_alive) return;
+    
+        switch(event.code) {
+            case 'Space': {
+                jump_h_vel = -12; 
+            } break;
+    
+            case 'KeyQ': {
+                if (pipe_boost > 0) return;
+                pipe_boost = 15;
+                jump_v_vel = 100;
+    
+            } break;
+    
+            default: {
+                // console.log('unknown input'); 
+            } break;
+        }
+    });
 
-    switch(event.code) {
-        case 'Space': {
-            jump_h_vel = -12; 
-        } break;
+    create_pipe(); 
+    requestAnimationFrame(render);
+}
 
-        case 'KeyQ': {
-            if (pipe_boost > 0) return;
-            pipe_boost = 15;
-            jump_v_vel = 100;
-
-        } break;
-
-        default: {
-            // console.log('unknown input'); 
-        } break;
-    }
-});
+main();
 
 function render() {
     const circle = new Path2D();
@@ -65,7 +72,6 @@ function render() {
     ctx.clearRect(0, 0, global.c_width, global.c_height);
     circle.arc(pos_x, pos_y, 25, 0, 2*Math.PI);
     ctx.fill(circle);
-
 
     pos_y += (horizontal_velocity + jump_h_vel);
     if (jump_h_vel < 0) jump_h_vel += -jump_h_vel/50;
@@ -76,7 +82,20 @@ function render() {
     } 
 
     if (pos_x > 100) pos_x -= 1;
+    
+    draw_pipes();
+    draw_score();
 
+    if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
+    if (pipe_boost < 1) pipe_boost = 0;
+    
+    draw_game_over_overlay();
+
+    requestAnimationFrame(render);
+}
+
+function draw_pipes() {
+    // filter out the pipes that are out of view
     pipes = pipes.filter(p => p.pos_x > -100);
     
     for (pipe of pipes) {
@@ -89,14 +108,10 @@ function render() {
         ctx.fillStyle = pipe.color;
         ctx.fill(top);
         ctx.fill(bottom);
-        
-        if (is_alive && pipe.pos_x < pos_x && !pipe.counted) {
-            score++;
-            pipe.counted = true;
-        }
+       
+        increment_score(pipe);
 
-        if (is_alive && (has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: 0, width: 50, height: (global.c_height/4) - pipe.pos_y/2}) || 
-                         has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: global.c_height - pipe.pos_y*2, width: 50, height: 500}))) {
+        if (has_collision(pipe)) {
             pipe.color = 'rgba(252, 80, 68, 0.7)';
             pipe_velocity = -2;
             is_alive = false;
@@ -104,17 +119,30 @@ function render() {
 
         pipe.pos_x -= pipe_velocity + pipe_boost;
     }
+}
 
+function has_collision(pipe) {
+    return is_alive && (has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: 0, width: 50, height: (global.c_height/4) - pipe.pos_y/2}) || 
+                         has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: global.c_height - pipe.pos_y*2, width: 50, height: 500}))
+}
+
+function increment_score(pipe) {
+    if (is_alive && pipe.pos_x < pos_x && !pipe.counted) {
+        score++;
+        pipe.counted = true;
+    }
+}
+
+function draw_score() {
     if (is_alive) {
         ctx.fillStyle = 'rgb(0, 0, 0)';
         ctx.font = 'bold 80px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(score, global.c_width/2 - 25, 80);
     }
+}
 
-    if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
-    if (pipe_boost < 1) pipe_boost = 0;
-
+function draw_game_over_overlay() {
     if (!is_alive) {
         const go_overlay = new Path2D();
         go_overlay.rect(0, 0, global.c_width, global.c_height);
@@ -131,11 +159,7 @@ function render() {
         ctx.textAlign = 'center';
         ctx.fillText(score, global.c_width/2 - 25, global.c_height/2 + 170);
     }
-
-    requestAnimationFrame(render);
 }
-
-create_pipe();
 
 function create_pipe(){
     pipes.push( new Pipe(global.c_width, random(5, 151)));
@@ -204,5 +228,3 @@ const has_intersection = ({ x: cx, y: cy, r: cr}, {x, y, width, height}) => {
 
   return dx * dx + dy * dy <= cr * cr;
 };
-
-requestAnimationFrame(render);
