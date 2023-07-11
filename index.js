@@ -1,9 +1,13 @@
 const canvas = document.getElementById("canvas");
 canvas.style.width = '100%';
 canvas.style.width = '100%';
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
 
+global = {};
+global.c_width = canvas.offsetWidth;
+global.c_height = canvas.offsetHeight;
+
+canvas.width = global.c_width;
+canvas.height = global.c_height;
 const ctx = canvas.getContext("2d");
 
 class Pipe {
@@ -48,14 +52,15 @@ document.addEventListener("keydown", (event) => {
 
             pipe_boost = 15;
             jump_v_vel = 100;
-            pipes.push( new Pipe(canvas.offsetWidth + 50, random(5, 151)));
-            pipes.push( new Pipe(canvas.offsetWidth + 150, random(5, 151)));
-            pipes.push( new Pipe(canvas.offsetWidth + 240, random(5, 151)));
-            pipes.push( new Pipe(canvas.offsetWidth + 370, random(5, 151)));
+
+            // pipes.push( new Pipe(canvas.offsetWidth + 50, random(5, 151)));
+            // pipes.push( new Pipe(canvas.offsetWidth + 150, random(5, 151)));
+            // pipes.push( new Pipe(canvas.offsetWidth + 240, random(5, 151)));
+            // pipes.push( new Pipe(canvas.offsetWidth + 370, random(5, 151)));
         } break;
 
         default: {
-            console.log('unknown input'); 
+            // console.log('unknown input'); 
         } break;
     }
 });
@@ -63,7 +68,7 @@ document.addEventListener("keydown", (event) => {
 function render() {
     const circle = new Path2D();
     ctx.fillStyle = 'rgb(0, 0, 0)';
-    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    ctx.clearRect(0, 0, global.c_width, global.c_height);
     circle.arc(pos_x, pos_y, 25, 0, 2*Math.PI);
     ctx.fill(circle);
 
@@ -71,7 +76,7 @@ function render() {
     pos_y += (horizontal_velocity + jump_h_vel);
     if (jump_h_vel < 0) jump_h_vel += -jump_h_vel/50;
     if (jump_v_vel > 0) { 
-        if(jump_v_vel < 5) jump_v_vel = 0;
+        if(jump_v_vel < 1) jump_v_vel = 0;
         pos_x += jump_v_vel/5;
         jump_v_vel -= jump_v_vel/5;
     } 
@@ -84,15 +89,15 @@ function render() {
         const top = new Path2D();
         const bottom = new Path2D();
 
-        top.rect(pipe.pos_x, 0, 50, (canvas.offsetHeight/3) - pipe.pos_y);
-        bottom.rect(pipe.pos_x, canvas.offsetHeight - pipe.pos_y*2,  50, 500);
+        top.rect(pipe.pos_x, 0, 50, (global.c_height/2) - pipe.pos_y);
+        bottom.rect(pipe.pos_x, global.c_height - pipe.pos_y*3,  50, 500);
         
         ctx.fillStyle = pipe.color;
         ctx.fill(top);
         ctx.fill(bottom);
         
         if (pipe.pos_x < pos_x && !pipe.counted) {
-            console.log(score++);
+            score++;
             pipe.counted = true;
         }
 
@@ -102,7 +107,7 @@ function render() {
     ctx.fillStyle = 'rgb(0, 0, 0)';
     ctx.font = 'bold 80px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(score, canvas.offsetWidth/2 - 25, 80);
+    ctx.fillText(score, global.c_width/2 - 25, 80);
 
     if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
     if (pipe_boost < 1) pipe_boost = 0;
@@ -113,9 +118,8 @@ function render() {
 create_pipe();
 
 function create_pipe(){
-    console.log(generate_blue_color());
-    pipes.push( new Pipe(canvas.offsetWidth, random(5, 151)));
-    setTimeout(create_pipe, random(300, 1000));
+    pipes.push( new Pipe(global.c_width, random(5, 151)));
+    setTimeout(create_pipe, random(500, 1500));
 }
 
 function generate_blue_color() {
