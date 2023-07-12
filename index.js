@@ -47,33 +47,6 @@ let pipe_horizontal_velocity = 3;
 let frame_times = [];
 let fps = 0;
 
-main();
-
-function main () {
-    document.addEventListener("keydown", (event) => {
-        if (!is_alive) return;
-    
-        switch(event.code) {
-            case 'Space': {
-                jump_h_vel = -12; 
-            } break;
-    
-            case 'KeyQ': {
-                if (pipe_boost > 0) return;
-                pipe_boost = 15;
-                jump_v_vel = 100;
-    
-            } break;
-    
-            default: {
-                // console.log('unknown input'); 
-            } break;
-        }
-    });
-
-    create_pipe();
-    game_loop();
-}
 
 // ===========================================================
 
@@ -308,3 +281,31 @@ function has_intersection ({ x: cx, y: cy, r: cr}, {x, y, width, height}) {
 
   return dx * dx + dy * dy <= cr * cr;
 };
+
+function main () {
+    document.addEventListener("keydown", (event) => {
+        if (!is_alive) return;
+    
+        switch(event.code) {
+            case 'Space': {
+                jump_h_vel = -12; 
+            } break;
+    
+            case 'KeyQ': {
+                if (pipe_boost > 0) return;
+                pipe_boost = 15;
+                jump_v_vel = 100;
+    
+            } break;
+    
+            default: {
+                // console.log('unknown input'); 
+            } break;
+        }
+    });
+
+    create_pipe();
+    game_loop();
+}
+
+main();
