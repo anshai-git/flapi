@@ -77,7 +77,7 @@ function main () {
 
 // ===========================================================
 
-var fps_limit = 60,
+let fps_limit = 144,
     //Get the start time
     start_time = performance.now(),
     //Set the frame duration in milliseconds
