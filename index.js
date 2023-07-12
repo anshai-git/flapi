@@ -13,48 +13,51 @@ const ctx     = canvas.getContext("2d");
 class Pipe {
     pos_x; pos_y; counted; color;
     h_range; height; gap; h_direction;
+    old_pos_x; old_height; width;
 
     constructor(x, y) {
-        this.pos_x      = x;
-        this.pos_y      = y;
-        this.counted    = false;
-        this.color      = generate_pipe_color_by_level();
-        this.h_range    = 50;
-        this.height     = random(200, 300);
-        this.gap        = random(300, 500);
+        this.pos_x       = x;
+        this.pos_y       = y;
+        this.counted     = false;
+        this.color       = generate_pipe_color_by_level();
+        this.h_range     = 50;
+        this.height      = random(200, 300);
+        this.gap         = random(300, 500);
         this.h_direction = true;
+        this.old_pos_x   = x;
+        this.old_height  = 0;
+        this.width       = 80;
     }
 }
 
-is_alive = true;
-let old_pos_x = 0;
-let old_pos_y = 0;
-let pos_y       = 30;
-let pos_x       = 100;
-let horizontal_velocity = 4;
-let vertical_velocity   = 4;
-let jump_h_vel = 0;
-let jump_v_vel = 0;
+let is_alive = true,
+    old_pos_x   = 0,
+    old_pos_y   = 0,
+    pos_y       = 30,
+    pos_x       = 100,
 
-let pipes           = [];
-let pipe_velocity   = 2;
-let pipe_boost      = 0;
-let score           = 0;
+    horizontal_velocity = 10,
+    vertical_velocity   = 10,
 
-let pipe_horizontal_range    = 50;
-let pipe_horizontal_velocity = 3;
-
-let frame_times = [];
-let fps = 0;
-
-
-// ===========================================================
-
-let fps_limit = 144,
+    jump_h_vel = 0,
+    jump_v_vel = 0,
+    
+    pipes           = [],
+    pipe_velocity   = 5,
+    pipe_boost      = 0,
+    score           = 0,
+    
+    pipe_horizontal_range    = 50,
+    pipe_horizontal_velocity = 3,
+    
+    frame_times = [],
+    fps         = 0,
+    
+    refresh_rate   = 100,
     //Get the start time
-    start_time = performance.now(),
+    start_time  = performance.now(),
     //Set the frame duration in milliseconds
-    frame_duration = 1000 / fps_limit,
+    frame_duration = 1000 / refresh_rate,
     //Initialize the lag offset
     lag = 0;
 
@@ -82,9 +85,11 @@ function game_loop() {
 }
 
 function update() {
+    // update circle positions
     pos_y += (horizontal_velocity + jump_h_vel);
 
-    if (jump_h_vel < 0) jump_h_vel += -jump_h_vel/50;
+    if (jump_h_vel < 0) jump_h_vel += -jump_h_vel/40;
+    // if (horizontal_velocity + jump_h_vel > 5) jump_h_vel += -jump_h_vel/20;
     if (jump_v_vel > 0) { 
         if(jump_v_vel < 1) jump_v_vel = 0;
         pos_x += jump_v_vel/5;
@@ -94,16 +99,39 @@ function update() {
     if (pos_x > 100) pos_x -= 1;
     if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
     if (pipe_boost < 1) pipe_boost = 0;
+    
+    // update pipe positions
+    if (is_alive) pipes = pipes.filter(p => p.pos_x > -100);
+    for (pipe of pipes) {
+        if (has_collision(pipe)) {
+            pipe.color = 'rgba(252, 80, 68, 0.7)';
+            pipe_velocity = -2;
+            is_alive = false;
+        }
 
+        if (true) {
+            if (pipe.h_direction) {
+                pipe.height ++;
+                pipe.gap -=2;
+                if (pipe.h_range--  < 0) pipe.h_direction = false;
+            } else {
+                pipe.height --;
+                pipe.gap +=2;
+                if (pipe.h_range++  > 50) pipe.h_direction = true;
+            }
+        }
+
+        pipe.pos_x -= pipe_velocity + pipe_boost;
+    }
 }
 
 function render(lag_offset) {
     draw_circle(lag_offset);
-    // draw_pipes(lag_offset);
-    // draw_score(lag_offset);
+    draw_pipes(lag_offset);
+    draw_score();
 
-    draw_fps(lag_offset);
-    // draw_game_over_overlay(lag_offset);
+    draw_fps();
+    draw_game_over_overlay(lag_offset);
 }
 
 function draw_circle(lag_offset) {
@@ -131,47 +159,40 @@ function calculate_fps(){
 
 function draw_fps() {
     ctx.fillStyle = 'rgb(245, 56, 56)';
-    ctx.font = 'bold 20px Arial';
+    ctx.font      = 'bold 20px Arial';
     ctx.textAlign = 'center';
     ctx.fillText("FPS: " + fps, 50, 50);
 }
 
-function draw_pipes() {
-    // filter out the pipes that are out of view
-    pipes = pipes.filter(p => p.pos_x > -100);
-    
+function draw_pipes(lag_offset) {
     for (pipe of pipes) {
-        const top = new Path2D();
-        const bottom = new Path2D();
+        const top_pipe    = new Path2D();
+        const bottom_pipe = new Path2D();
+        
+        let x = (pipe.pos_x - pipe.old_pos_x) * lag_offset + pipe.old_pos_x;
+        // const x = pipe.pos_x;
+        let height = (pipe.height - pipe.old_height) * lag_offset + pipe.old_height;
 
-        top.rect(pipe.pos_x, 0, 50, pipe.height);
-        bottom.rect(pipe.pos_x, pipe.height + pipe.gap,  50, global.c_height);
+        top_pipe.rect(
+            x,              // start position x
+            0,              // start position y
+            pipe.width,     // width
+            pipe.height);   // height
+
+        bottom_pipe.rect(
+            x,
+            height + pipe.gap,
+            pipe.width,
+            global.c_height);
         
         ctx.fillStyle = pipe.color;
-        ctx.fill(top);
-        ctx.fill(bottom);
+        ctx.fill(top_pipe);
+        ctx.fill(bottom_pipe);
        
         increment_score(pipe);
 
-        if (has_collision(pipe)) {
-            pipe.color = 'rgba(252, 80, 68, 0.7)';
-            pipe_velocity = -2;
-            is_alive = false;
-        }
-
-        if (true) {
-            if (pipe.h_direction) {
-                pipe.height ++;
-                pipe.gap -=2;
-                if (pipe.h_range--  < 0) pipe.h_direction = false;
-            } else {
-                pipe.height --;
-                pipe.gap +=2;
-                if (pipe.h_range++  > 50) pipe.h_direction = true;
-            }
-        }
-
-        pipe.pos_x -= pipe_velocity + pipe_boost;
+        pipe.old_pos_x = pipe.pos_x;
+        pipe.old_height = pipe.height;
     }
 }
 
@@ -190,7 +211,7 @@ function increment_score(pipe) {
 function draw_score() {
     if (is_alive) {
         ctx.fillStyle = 'rgb(0, 0, 0)';
-        ctx.font = 'bold 80px Arial';
+        ctx.font      = 'bold 80px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(score, global.c_width/2 - 25, 80);
     }
@@ -200,6 +221,7 @@ function draw_game_over_overlay() {
     if (!is_alive) {
         const go_overlay = new Path2D();
         go_overlay.rect(0, 0, global.c_width, global.c_height);
+
         ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';
         ctx.fill(go_overlay);
 
@@ -216,7 +238,7 @@ function draw_game_over_overlay() {
 }
 
 function create_pipe(){
-    pipes.push( new Pipe(global.c_width, random(5, 151)));
+    pipes.push(new Pipe(global.c_width, random(5, 151)));
     setTimeout(create_pipe, random(1000, 2000));
 }
 
@@ -288,7 +310,7 @@ function main () {
     
         switch(event.code) {
             case 'Space': {
-                jump_h_vel = -12; 
+                jump_h_vel = -20; 
             } break;
     
             case 'KeyQ': {
