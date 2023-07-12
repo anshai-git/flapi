@@ -27,7 +27,8 @@ class Pipe {
 }
 
 is_alive = true;
-
+let old_pos_x = 0;
+let old_pos_y = 0;
 let pos_y       = 30;
 let pos_x       = 100;
 let horizontal_velocity = 4;
@@ -45,6 +46,8 @@ let pipe_horizontal_velocity = 3;
 
 let frame_times = [];
 let fps = 0;
+
+main();
 
 function main () {
     document.addEventListener("keydown", (event) => {
@@ -68,22 +71,46 @@ function main () {
         }
     });
 
-    create_pipe(); 
-    requestAnimationFrame(render);
+    create_pipe();
+    game_loop();
 }
 
-main();
+// ===========================================================
 
-function render() {
+var fps_limit = 60,
+    //Get the start time
+    start_time = performance.now(),
+    //Set the frame duration in milliseconds
+    frame_duration = 1000 / fps_limit,
+    //Initialize the lag offset
+    lag = 0;
+
+function game_loop() {
+    requestAnimationFrame(game_loop);
+
+    let current_time = performance.now(),
+        elapsed_time = current_time - start_time;
+    start_time = current_time;
+
+    //Add the elapsed time to the lag counter
+    lag += elapsed_time;
+    while (lag >= frame_duration){  
+        //Update the logic
+        update();
+        //Reduce the lag counter by the frame duration
+        lag -= frame_duration;
+    }
+
+    //Calculate the lag offset and use it to render the sprites
+    var lag_offset = lag / frame_duration;
+    render(lag_offset);
+
     calculate_fps();
+}
 
-    const circle = new Path2D();
-    ctx.fillStyle = 'rgb(0, 0, 0)';
-    ctx.clearRect(0, 0, global.c_width, global.c_height);
-    circle.arc(pos_x, pos_y, 25, 0, 2*Math.PI);
-    ctx.fill(circle);
-
+function update() {
     pos_y += (horizontal_velocity + jump_h_vel);
+
     if (jump_h_vel < 0) jump_h_vel += -jump_h_vel/50;
     if (jump_v_vel > 0) { 
         if(jump_v_vel < 1) jump_v_vel = 0;
@@ -92,17 +119,32 @@ function render() {
     } 
 
     if (pos_x > 100) pos_x -= 1;
-    
-    draw_pipes();
-    draw_score();
-    draw_fps();
-
     if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
     if (pipe_boost < 1) pipe_boost = 0;
-    
-    draw_game_over_overlay();
 
-    requestAnimationFrame(render);
+}
+
+function render(lag_offset) {
+    draw_circle(lag_offset);
+    // draw_pipes(lag_offset);
+    // draw_score(lag_offset);
+
+    draw_fps(lag_offset);
+    // draw_game_over_overlay(lag_offset);
+}
+
+function draw_circle(lag_offset) {
+    const circle = new Path2D();
+    ctx.fillStyle = 'rgb(0, 0, 0)';
+    ctx.clearRect(0, 0, global.c_width, global.c_height);
+    circle.arc(
+        (pos_x - old_pos_x) * lag_offset + old_pos_x,
+        (pos_y - old_pos_y) * lag_offset + old_pos_y,
+        25, 0, 2*Math.PI);
+    ctx.fill(circle);
+
+    old_pos_x = pos_x;
+    old_pos_y = pos_y;
 }
 
 function calculate_fps(){
@@ -243,7 +285,7 @@ function random(min, max) {
     return Math.random() * (max - min) + min;
 }
 
-const has_intersection = ({ x: cx, y: cy, r: cr}, {x, y, width, height}) => {
+function has_intersection ({ x: cx, y: cy, r: cr}, {x, y, width, height}) {
   const distX = Math.abs(cx - x - width / 2);
   const distY = Math.abs(cy - y - height / 2);
 
