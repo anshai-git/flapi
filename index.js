@@ -3,40 +3,48 @@ canvas.style.width = '100%';
 canvas.style.width = '100%';
 
 global = {};
-global.c_width = canvas.offsetWidth;
+global.c_width  = canvas.offsetWidth;
 global.c_height = canvas.offsetHeight;
 
-canvas.width = global.c_width;
+canvas.width  = global.c_width;
 canvas.height = global.c_height;
-const ctx = canvas.getContext("2d");
+const ctx     = canvas.getContext("2d");
 
 class Pipe {
-    pos_x;
-    pos_y;
-    counted = false;
-    color;
+    pos_x; pos_y; counted; color;
+    h_range; height; gap; h_direction;
 
     constructor(x, y) {
-        this.pos_x = x;
-        this.pos_y = y;
-        this.counted = false;
-        this.color = generate_pipe_color_by_level();
+        this.pos_x      = x;
+        this.pos_y      = y;
+        this.counted    = false;
+        this.color      = generate_pipe_color_by_level();
+        this.h_range    = 50;
+        this.height     = random(200, 300);
+        this.gap        = random(300, 500);
+        this.h_direction = true;
     }
 }
 
 is_alive = true;
 
-let pos_y = 30;
-let pos_x = 100;
+let pos_y       = 30;
+let pos_x       = 100;
 let horizontal_velocity = 4;
-let vertical_velocity = 4;
+let vertical_velocity   = 4;
 let jump_h_vel = 0;
 let jump_v_vel = 0;
 
-let pipes = [];
-let pipe_velocity = 2;
-let pipe_boost = 0;
-let score = 0;
+let pipes           = [];
+let pipe_velocity   = 2;
+let pipe_boost      = 0;
+let score           = 0;
+
+let pipe_horizontal_range    = 50;
+let pipe_horizontal_velocity = 3;
+
+let frame_times = [];
+let fps = 0;
 
 function main () {
     document.addEventListener("keydown", (event) => {
@@ -67,6 +75,8 @@ function main () {
 main();
 
 function render() {
+    calculate_fps();
+
     const circle = new Path2D();
     ctx.fillStyle = 'rgb(0, 0, 0)';
     ctx.clearRect(0, 0, global.c_width, global.c_height);
@@ -85,6 +95,7 @@ function render() {
     
     draw_pipes();
     draw_score();
+    draw_fps();
 
     if (pipe_boost > 0) pipe_boost -= pipe_boost/50;
     if (pipe_boost < 1) pipe_boost = 0;
@@ -92,6 +103,22 @@ function render() {
     draw_game_over_overlay();
 
     requestAnimationFrame(render);
+}
+
+function calculate_fps(){
+    const now = performance.now();
+    while (frame_times.length > 0 && frame_times[0] <= now - 1000) {
+      frame_times.shift();
+    }
+    frame_times.push(now);
+    fps = frame_times.length;
+}
+
+function draw_fps() {
+    ctx.fillStyle = 'rgb(245, 56, 56)';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("FPS: " + fps, 50, 50);
 }
 
 function draw_pipes() {
@@ -102,8 +129,8 @@ function draw_pipes() {
         const top = new Path2D();
         const bottom = new Path2D();
 
-        top.rect(pipe.pos_x, 0, 50, (global.c_height/4) - pipe.pos_y/2);
-        bottom.rect(pipe.pos_x, global.c_height - pipe.pos_y*2,  50, 500);
+        top.rect(pipe.pos_x, 0, 50, pipe.height);
+        bottom.rect(pipe.pos_x, pipe.height + pipe.gap,  50, global.c_height);
         
         ctx.fillStyle = pipe.color;
         ctx.fill(top);
@@ -117,13 +144,25 @@ function draw_pipes() {
             is_alive = false;
         }
 
+        if (true) {
+            if (pipe.h_direction) {
+                pipe.height ++;
+                pipe.gap -=2;
+                if (pipe.h_range--  < 0) pipe.h_direction = false;
+            } else {
+                pipe.height --;
+                pipe.gap +=2;
+                if (pipe.h_range++  > 50) pipe.h_direction = true;
+            }
+        }
+
         pipe.pos_x -= pipe_velocity + pipe_boost;
     }
 }
 
 function has_collision(pipe) {
-    return is_alive && (has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: 0, width: 50, height: (global.c_height/4) - pipe.pos_y/2}) || 
-                         has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: global.c_height - pipe.pos_y*2, width: 50, height: 500}))
+    return is_alive && (has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: 0, width: 50, height: pipe.height}) || 
+                         has_intersection({x: pos_x, y: pos_y, r: 25}, {x: pipe.pos_x, y: pipe.height + pipe.gap, width: 50, height: global.c_height}))
 }
 
 function increment_score(pipe) {
@@ -150,12 +189,12 @@ function draw_game_over_overlay() {
         ctx.fill(go_overlay);
 
         ctx.fillStyle = 'rgb(255, 255, 255)';
-        ctx.font = 'bold 150px Arial';
+        ctx.font      = 'bold 150px Arial';
         ctx.textAlign = 'center';
         ctx.fillText("Game Over", global.c_width/2 - 25, global.c_height/2);
 
         ctx.fillStyle = 'rgb(255, 255, 255)';
-        ctx.font = 'bold 200px Arial';
+        ctx.font      = 'bold 200px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(score, global.c_width/2 - 25, global.c_height/2 + 170);
     }
@@ -187,7 +226,6 @@ function generate_color(red_range, green_range, blue_range, alpha_range) {
 }
 
 function generate_pipe_color_by_level() {
-    console.log(true);
     switch(true) {
         case (score < 30): {
             return lv_1_color();
