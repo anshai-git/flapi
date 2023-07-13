@@ -19,20 +19,20 @@ const Color = {
         let red     = Math.ceil(random(red_range[0], red_range[1]));
         let green   = Math.ceil(random(green_range[0], green_range[1]));
         let blue    = Math.ceil(random(blue_range[0], blue_range[1]));
-        let alpha   = Math.ceil(random(alpha_range[0], alpha_range[1]));
-        return `rgba(${red}, ${green}, ${blue}, 0.${alpha})`;
+        let alpha   = alpha_range ? `0.${Math.ceil(random(alpha_range[0], alpha_range[1]))}` : 1;
+        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
     },
 
     lv_1_color: function() {
-        return this.generate_color([10, 50], [80, 120], [200, 220], [4, 8]);
+        return this.generate_color([10, 50], [80, 120], [200, 220], null);
     },
 
     lv_2_color: function() {
-        return this.generate_color([80, 120], [10, 50], [200, 220], [4, 8]);
+        return this.generate_color([80, 120], [10, 50], [200, 220], null);
     },
 
     lv_3_color: function() {
-        return this.generate_color([80, 120], [200, 220], [10, 50], [4, 8]);
+        return this.generate_color([80, 120], [200, 220], [10, 50], null);
     },
 
     generate_pipe_color_by_level: function() {
@@ -55,12 +55,27 @@ class PipePair {
     top_pipe; bottom_pipe;
 
     constructor(x_pos) {
+        this.gap          = random(100, 200);
         this.counted      = false;
         // TODO:
         // consider setting the pipe width different for easier / harder levels
         // dynamic width, growing / shrinking pipes
-        this.top_pipe     = new Pipe(x_pos, 0, 50, Global.canvas_height/2 - this.gap/2, Color.generate_pipe_color_by_level(), 0, 0, 5);
-        this.bottom_pipe  = new Pipe(x_pos, Global.canvas_height/2 + this.gap/2, 50, Global.canvas_height, Color.generate_pipe_color_by_level(), 0, 0, 5);
+        let color = Color.generate_pipe_color_by_level();
+        this.top_pipe     = new Pipe(x_pos, 0, 50, Global.canvas_height/2 - this.gap/2, color, 0, 0, 5);
+        this.bottom_pipe  = new Pipe(x_pos, Global.canvas_height/2 + this.gap/2, 50, Global.canvas_height, color, 0, 0, 5);
+    }
+
+    update() {
+        this.top_pipe.update();
+        this.bottom_pipe.update();
+    }
+
+    render(lag_offset) {
+      this.top_pipe.render(lag_offset);
+      this.bottom_pipe.render(lag_offset);
+
+      //  // NOTE: Score incrementing
+      //  increment_score(pipe);
     }
 }
 
@@ -76,7 +91,7 @@ class Pipe {
 
     y_velocity; x_velocity;
 
-    constructor(x, y, height, width, color, y_move_range, y_velocity, x_velocity) {
+    constructor(x, y, width, height, color, y_move_range, y_velocity, x_velocity) {
         this.color       = color;
 
         this.pos_x       = x;
@@ -97,8 +112,37 @@ class Pipe {
         this.y_velocity       = y_velocity;
         this.x_velocity       = x_velocity;
     }
+
+    update() {
+        this.pos_x -= 5; // (this.x_velocity + Global.pipe_x_boost);
+    }
+
+    render(lag_offset) {
+        const path = new Path2D();
+        ctx.fillStyle = this.color;
+
+        let x = (this.pos_x - this.old_pos_x) * lag_offset + this.old_pos_x;
+        let w = this.width;
+        let h = (this.height - this.old_height) * lag_offset + this.old_height;
+
+        // console.log(x);
+
+        path.rect(
+            x,
+            this.pos_y,
+            w,
+            h)
+
+        // path.rect(300, 0, 50, 200);
+
+        ctx.fill(path);
+
+        this.old_pos_x = this.pos_x;
+        this.old_height = this.height;
+    }
 }
 
+// For now, all collectables are circle shaped
 class Collectable {
     pos_x; pos_y; radius; x_velocity; 
     old_pos_x; old_pos_y; collected;
@@ -109,18 +153,16 @@ class Collectable {
         this.pos_y      = y;
         this.radius     = radius
         this.x_velocity = x_velocity;
-        this.old_pos_x  = 0;
-        this.old_pos_y  = 0;
+        this.old_pos_x  = x;
+        this.old_pos_y  = y;
     }
 
     has_collision(circle) {
-        let d = Math.sqrt((circle.pos_x - this.pos_x) * (circle.pos_x - this.pos_x) + (circle.pos_y - this.pos_y) * (circle.pos_y - this.pos_y));
-     
-        return (d <= circle.radius - this.radius) ||
-            (d <= this.radius - circle.radius) ||
-            (d < this.radius + circle.radius)  ||
-            (d == this.radius + circle.radius);
-        
+        let dist_x = circle.pos_x - this.pos_x;
+        let dist_y = circle.pos_y - this.pos_y;
+
+        let dist   = Math.sqrt((dist_x * dist_x) + (dist_y * dist_y));
+        return dist <= circle.radius + this.radius;
     }
 
     render(lag_offset) {
@@ -149,9 +191,15 @@ class SizeCoin extends Collectable {
     }
     
     handle_collision() {
-        if (this.collected) return;
-        if (this.has_collision(Global.circle)) Global.circle.radius -= 10;
-        this.collected = true;
+        // TODO: not working
+        // if (this.collected) return;
+        // if (this.has_collision(Global.circle)) Global.circle.radius -= 10;
+        // this.collected = true;
+    }
+
+    update() {
+        this.handle_collision();
+        super.update();
     }
 }
 
@@ -169,6 +217,7 @@ class Circle {
     jump_x_velocity;
     jump_y_velocity;
     color;
+    bullets;
 
     constructor(x, y, x_vel, y_vel, radius, color) {
         this.radius = radius;
@@ -186,9 +235,13 @@ class Circle {
 
         this.jump_x_velocity = 0;
         this.jump_y_velocity = 0;
+        this.bullets = [];
     }
 
     update() {
+        // TODO: Update bullets should not be here ?
+        this.bullets.forEach(b => { b.update(); });
+        
         this.pos_y += this.y_velocity + (-this.jump_y_velocity);
 
         // if jumping -> reduce the jump velocity proportionally to itself
@@ -236,10 +289,13 @@ class Circle {
 
         this.old_pos_x = this.pos_x;
         this.old_pos_y = this.pos_y;
+        
+        // TODO: render bullets should not be here ?
+        this.bullets.forEach(b => { b.render(lag_offset); });
     }
 
     jump() {
-        this.jump_y_velocity = 20;
+        this.jump_y_velocity = 15;
     }
 
     is_boost_in_progress() {
@@ -249,11 +305,49 @@ class Circle {
     boost() {
         this.jump_x_velocity = 100;
     }
+
+    shoot() {
+        this.bullets.push(new Bullet(this.pos_x, this.pos_y, 3, 15, Color.Black));
+    }
+}
+
+class Bullet {
+    pos_x; pos_y;
+    old_pos_x; old_pos_y;
+    radius;
+    x_velocity; color;
+
+    constructor(pos_x, pos_y, radius, x_velocity, color) {
+        this.pos_x      = pos_x; 
+        this.pos_y      = pos_y; 
+        this.radius     = radius;
+        this.old_pos_x  = 0;
+        this.old_pos_y  = 0;
+        this.x_velocity = x_velocity;
+        this.color      = color;
+    }
+
+    update() {
+        this.pos_x += this.x_velocity;
+    }
+
+    render(lag_offset) {
+        const circle = new Path2D();
+        ctx.fillStyle = this.color;
+        circle.arc(
+            (this.pos_x - this.old_pos_x) * lag_offset + this.old_pos_x,
+            (this.pos_y - this.old_pos_y) * lag_offset + this.old_pos_y,
+            this.radius, 0, 2*Math.PI);
+
+        ctx.fill(circle);
+
+        this.old_pos_x = this.pos_x;
+        this.old_pos_y = this.pos_y;
+    }
 }
     
 Global.pipe_pairs      = [];
 Global.collectables    = [];
-Global.pipe_x_velocity = 5;
 Global.pipe_x_boost    = 0;
 Global.score           = 0;
 Global.frame_times     = [];
@@ -263,7 +357,7 @@ Global.start_time      = performance.now();   // Get the start time
 Global.frame_duration  = 1000 / Global.refresh_rate; // Set the frame duration in milliseconds
 Global.lag             = 0;                   // Initialize the lag offset
 
-Global.circle = new Circle(100, 100, 0, 5, Color.BLACK);
+Global.circle = new Circle(100, 100, 0, 5, 25, Color.BLACK);
 
 Global.calculate_lag_offset = function() {
     // TODO: Not sure if 'this' works here
@@ -297,9 +391,8 @@ function game_loop() {
 
 function update() {
     Global.circle.update(); 
-    Global.collectables.forEach(c => {
-        c.update(); 
-    });
+    Global.collectables.forEach(c => { c.update(); });
+    Global.pipe_pairs.forEach(p => { p.update(); });
 
     // TODO: explain this
     // if (Global.pipe_x_boost > 0) Global.pipe_x_boost -= Global.pipe_x_boost/50;
@@ -343,9 +436,8 @@ function render(lag_offset) {
     ctx.clearRect(0, 0, Global.canvas_width, Global.canvas_height);
 
     Global.circle.render(lag_offset);
-    Global.collectables.forEach(c => {
-        c.render(lag_offset);
-    });
+    Global.collectables.forEach(c => { c.render(lag_offset); });
+    Global.pipe_pairs.forEach(p => { p.render(lag_offset); });
 
     // draw_pipes(lag_offset);
     // draw_score();
@@ -372,32 +464,7 @@ function draw_fps() {
 
 function draw_pipes(lag_offset) {
     for (pipe of pipes) {
-        const top_pipe    = new Path2D();
-        const bottom_pipe = new Path2D();
-        
-        let x = (pipe.pos_x - pipe.old_pos_x) * lag_offset + pipe.old_pos_x;
-        let height = (pipe.height - pipe.old_height) * lag_offset + pipe.old_height;
-
-        top_pipe.rect(
-            x,              // start position x
-            0,              // start position y
-            pipe.width,     // width
-            pipe.height);   // height
-
-        bottom_pipe.rect(
-            x,
-            height + pipe.gap,
-            pipe.width,
-            global.c_height);
-        
-        ctx.fillStyle = pipe.color;
-        ctx.fill(top_pipe);
-        ctx.fill(bottom_pipe);
-       
-        increment_score(pipe);
-
-        pipe.old_pos_x = pipe.pos_x;
-        pipe.old_height = pipe.height;
+        // TODO: MOVED TO PIPE PAIR CLASS
     }
 }
 
@@ -443,13 +510,13 @@ function draw_game_over_overlay() {
 }
 
 function create_pipe_pair(){
-    Global.pipe_pairs.push(new PipePair(Global.canvas_width, random(5, 6)));
+    Global.pipe_pairs.push(new PipePair(Global.canvas_width));
     setTimeout(create_pipe_pair, random(1000, 2000));
 }
 
 function create_size_coin() {
-   Global.collectables.push(new SizeCoin(Global.canvas_width, random(100, Global.canvas_height - 100), 30, 2));
-   setTimeout(create_size_coin, random(1000, 2000));
+   Global.collectables.push(new SizeCoin(Global.canvas_width, random(100, Global.canvas_height - 100), 15, random(2, 6)));
+   setTimeout(create_size_coin, random(300, 500));
 }
 
 function random(min, max) {
@@ -494,6 +561,10 @@ function main () {
                 Global.boost_pipes();
                 Global.circle.boost();
             } break;
+
+            case 'KeyR': {
+                Global.circle.shoot();
+            } break;
     
             default: {
                 // console.log('unknown input'); 
@@ -501,7 +572,7 @@ function main () {
         }
     });
 
-    // create_pipe_pair();
+    create_pipe_pair();
     create_size_coin();
     game_loop();
 }
